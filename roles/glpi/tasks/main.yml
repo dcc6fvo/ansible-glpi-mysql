@@ -1,0 +1,199 @@
+---
+  - name: 'Creates the following directories: app, public, files, backup, log'
+    file:
+      path: "{{ item }}"
+      state: directory
+      owner: www-data
+      group: www-data
+      mode: 0755
+      recurse: yes
+    loop:
+      - '{{ www_dir }}'
+      - '{{ www_dir }}/public'   
+      - '{{ www_dir }}/files'   
+      - '{{ www_dir }}/backup'   
+      - '{{ www_dir }}/log' 
+  
+  - name: 'Creates GLPI file directories'
+    file:
+      path: "{{ item }}"
+      state: directory
+      owner: www-data
+      group: www-data
+      mode: 0755
+      recurse: yes
+    loop:   
+      - '{{ www_dir }}/files/_cache'   
+      - '{{ www_dir }}/files/_cron'   
+      - '{{ www_dir }}/files/_dumps'   
+      - '{{ www_dir }}/files/_graphs'   
+      - '{{ www_dir }}/files/_inventories'   
+      - '{{ www_dir }}/files/_locales'   
+      - '{{ www_dir }}/files/_lock'   
+      - '{{ www_dir }}/files/_pictures'   
+      - '{{ www_dir }}/files/_plugins'
+      - '{{ www_dir }}/files/_rss'
+      - '{{ www_dir }}/files/_sessions'
+      - '{{ www_dir }}/files/_tmp'
+      - '{{ www_dir }}/files/_uploads'
+      
+  - name: 'Create GLPI config directory'
+    file:
+      path: '{{cfg_dir}}'
+      state: directory
+      owner: www-data
+      group: www-data
+      mode: 0755
+
+  - name: 'Create Apache2 SSL directory'
+    file:
+      path: /etc/apache2/ssl
+      state: directory
+      owner: root
+      group: root
+      mode: 0644 
+
+  - name: 'Set PHP apache2 directives'
+    ini_file:
+      path: /etc/php/7.4/apache2/php.ini
+      option: "{{ item.option }}"
+      value: "{{ item.value }}"
+      section: 'null'
+    with_items:
+      - { option: upload_max_filesize, value: '30M' }
+      - { option: memory_limit, value: '64M' }
+      - { option: file_uploads, value: 'on' }
+      - { option: max_execution_time, value: '600' } 
+
+  - name: 'Set PHP apache2 session directives'
+    ini_file:
+      path: /etc/php/7.4/apache2/php.ini
+      option: "{{ item.option }}"
+      section: 'Session'
+      value: "{{ item.value }}"
+    with_items:
+      - { option: session.auto_start, value: 'off' }
+      - { option: session.use_trans_sid, value: 0 }
+      - { option: session.cookie_httponly, value: 'on' }
+      - { option: session.cookie_secure, value: 'on' } 
+
+  - name: 'set PHP cli directives'
+    ini_file:
+      path: /etc/php/7.4/cli/php.ini
+      option: "{{ item.option }}"
+      value: "{{ item.value }}"
+      section: 'null'
+    with_items:
+      - { option: upload_max_filesize, value: '30M' }
+      - { option: memory_limit, value: '64M' }
+      - { option: file_uploads, value: 'on' }
+      - { option: max_execution_time, value: '600' }
+  
+  - name: 'Set PHP cli session directives'
+    ini_file:
+      path: /etc/php/7.4/cli/php.ini
+      option: "{{ item.option }}"
+      section: 'Session'
+      value: "{{ item.value }}"
+    with_items:
+      - { option: session.auto_start, value: 'off' }
+      - { option: session.use_trans_sid, value: 0 }
+      - { option: session.cookie_httponly, value: 'on' }
+      - { option: session.cookie_secure, value: 'on' } 
+      
+  - name: 'set PHP fpm directives'
+    ini_file:
+      path: /etc/php/7.4/fpm/php.ini
+      option: "{{ item.option }}"
+      value: "{{ item.value }}"
+      section: 'null'
+    with_items:
+      - { option: upload_max_filesize, value: '30M' }
+      - { option: memory_limit, value: '64M' }
+      - { option: file_uploads, value: 'on' }
+      - { option: max_execution_time, value: '600' }
+
+  - name: 'Set PHP fpm session directives'
+    ini_file:
+      path: /etc/php/7.4/fpm/php.ini
+      option: "{{ item.option }}"
+      section: 'Session'
+      value: "{{ item.value }}"
+    with_items:
+      - { option: session.auto_start, value: 'off' }
+      - { option: session.use_trans_sid, value: 0 }
+      - { option: session.cookie_httponly, value: 'on' }
+      - { option: session.cookie_secure, value: 'on' } 
+    notify:
+      - restart apache2
+
+  - name: 'Web app unzipping'
+    unarchive:
+      src: 'https://github.com/glpi-project/glpi/releases/download/{{glpi_version}}/glpi-{{glpi_version}}.tgz'
+      dest: '{{www_dir}}/public'
+      remote_src: yes
+      creates: '{{www_dir}}/public/index.php'
+      extra_opts: '--strip=1'
+      owner: www-data
+      group: www-data
+ 
+  - name: "Copying certificate files"
+    copy:
+      src: "{{item}}"
+      dest: /etc/apache2/ssl/
+      owner: root
+      group: root
+      force: no
+      mode: 0600
+    with_fileglob:
+    - '{{ssl_ansible_dir}}/*''
+
+  - name: 'Enable apache2 rewrite module'
+    apache2_module:
+      state: present
+      name: rewrite
+      ignore_configcheck: true
+  
+  - name: 'Enable apache2 ssl module'
+    apache2_module:
+      state: present
+      name: ssl
+      ignore_configcheck: true
+    notify:
+      - restart apache2
+
+  - name: 'Configuring inc/downstream file for glpi'
+    template:
+      src: 'templates/downstream.php.j2'
+      dest: '{{www_dir}}/public/inc/downstream.php'
+      owner: www-data
+      group: www-data
+
+  - name: 'Configuring local_define.php file for glpi'
+    template:
+      src: 'templates/local_define.php.j2'
+      dest: '{{cfg_dir}}/local_define.php'
+      owner: www-data
+      group: www-data
+      mode: 0755
+
+  - name: 'Configuring HTTP webapp on apache2'
+    template:
+      src: 'templates/000-default.conf.j2'
+      dest: '/etc/apache2/sites-available/{{domain}}.conf'
+  
+  - name: 'Configuring HTTPS webapp on apache2'
+    template:
+      src: 'templates/default-ssl.conf.j2'
+      dest: '/etc/apache2/sites-available/{{domain}}-ssl.conf'
+
+  - name: 'Disabling default site apache2 '
+    command: 'a2dissite 000-default.conf'
+  
+  - name: 'Enabling site apache2 {{ domain }} '
+    command: 'a2ensite {{ domain }}.conf'
+  
+  - name: 'Enabling site apache2 {{ domain }}-ssl.conf '
+    command: 'a2ensite {{ domain }}-ssl.conf'
+    notify:
+      - reload apache2

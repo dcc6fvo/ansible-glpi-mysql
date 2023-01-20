@@ -1,0 +1,40 @@
+---    
+  - name: 'Update repository cache'
+    apt:
+      update_cache: true
+      cache_valid_time: 3600
+      force_apt_get: true
+
+  - name: 'Upgrade all packages to the latest version'
+    apt:
+      name: "*"
+      state: latest
+    become: true
+
+  - name: 'Install basic GLPI packages'
+    apt:
+      name: "{{item}}"
+      state: latest
+    loop: 
+      - php7.4
+      - apache2
+      - libapache2-mod-php7.4
+      - php7.4-mysql
+      - php7.4-ldap
+      - php7.4-fpm
+      - php7.4-xml
+      - php7.4-curl
+      - php7.4-gd
+      - php7.4-json
+      - php7.4-mbstring
+      - php7.4-intl
+      - php7.4-common
+      - php7.4-cli
+      - php7.4-zip
+      - php7.4-bz2
+      - default-mysql-server
+  
+  - name: 'Install PyMySQL from pip'
+    pip:
+      name: pymysql
+      state: present

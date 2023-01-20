@@ -1,0 +1,22 @@
+---
+  - hosts: glpi
+    vars:
+      domain: 'glpi.exemplo.com'
+      www_dir: '/var/www/glpi'
+      cfg_dir: '/etc/glpi'
+      
+      files_dir: '{{www_dir}}/files'
+      log_dir: '{{www_dir}}/log'
+      
+      dirIndex: 'index.php'
+      db_name: 'glpi'
+      db_user: 'glpi'
+      db_user_pass: 'asdfasdfaf32s23f23dfasdf32fasdfasdfasa3'
+      db_host: 'localhost'
+      glpi_version: '10.0.5'
+      
+    roles:
+      - { role: init, become: yes }
+      #- { role: mysql, become: yes }
+      - { role: glpi, become: yes }
+

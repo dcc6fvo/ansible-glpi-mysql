@@ -1,0 +1,8 @@
+---
+ssl_dir: '/etc/apache2/ssl'
+ssl_cert_file: 'exemplo.com.crt'
+ssl_cert_key_file: 'exemplo.com.key'
+ssl_chain_file: 'intermediate.crt'
+ssl_ansible_dir: '/var/ansible/ssl'
+
+email_cti: 'suporte@exemplo.com'

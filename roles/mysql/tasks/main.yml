@@ -1,0 +1,26 @@
+---
+  - name: 'Create MySQL database'
+    mysql_db: 
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+      name: '{{ db_name }}'
+      state: present
+
+  - name: 'Create MySQL User'
+    mysql_user: 
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+      host: '%'
+      name: '{{ db_user }}'
+      password: '{{ db_user_pass }}'
+      priv: '{{ db_name }}.*:ALL'
+      state: present
+    no_log: true
+    
+  - name: 'Allowing MySQL remote connections'     
+    replace:
+      path: '/etc/mysql/mariadb.conf.d/50-server.cnf'
+      regexp: "{{ item.regex }}"
+      replace: "{{ item.value }}"
+    with_items:
+      - { regex: '127.0.0.1', value: '0.0.0.0'}
+    notify:
+      - restart mysql
